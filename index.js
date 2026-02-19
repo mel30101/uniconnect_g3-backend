@@ -28,8 +28,8 @@ passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     // En tu backend (index.js)
-    callbackURL: "https://lauran-plucky-shanae.ngrok-free.dev/auth/google/callback",
-    proxy: true // <--- AGREGA ESTA LÍNEA
+    callbackURL:`${process.env.BASE_URL}/auth/google/callback`,
+    proxy: true 
   },
   async (accessToken, refreshToken, profile, done) => {
     try {
