@@ -198,5 +198,8 @@ app.get('/api/academic-profile/:studentId', async (req, res) => {
   }
 });
 
+const chatRoutes = require('./routes/chatRoutes');
+app.use('/chats', chatRoutes);
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor corriendo en el puerto ${PORT}`));
