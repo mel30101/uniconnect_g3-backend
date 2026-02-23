@@ -198,6 +198,50 @@ app.get('/api/academic-profile/:studentId', async (req, res) => {
   }
 });
 
+app.get('/api/search-students', async (req, res) => {
+  try {
+    const {name, subjectId, isMonitor} = req.query;
+
+    let profileQuery = db.collection('academic_profiles');
+
+    if (subjectId) {
+      profileQuery = profileQuery.where('subjects', 'array-contains', subjectId);
+    }
+
+    if (isMonitor=='true') {
+      profileQuery = profileQuery.where('isMonitor', '==', true);
+    }
+
+    const profileSnapshot = await profileQuery.get();
+
+    if (profileQuery.empty) {
+      return res.json([]);
+    }
+
+    const studentIds = profileSnapshot.docs.map(doc => doc.id); 
+
+    const usersSnapshot = await db.collection('users') 
+      .where('uid', 'in', studentIds.slice(0,10))
+      .get
+
+    let users = usersSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    if (name) {
+      users = users.filter(user => user.name.toLowerCase().includes(name.toLowerCase()));
+    }
+
+    res.json(users);
+    
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({error: "error en la búsqueda"});
+  }
+})
+
+
 const chatRoutes = require('./routes/chatRoutes');
 app.use('/chats', chatRoutes);
 
