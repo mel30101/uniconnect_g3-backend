@@ -25,12 +25,12 @@ const db = admin.firestore();
 
 // Configuración de Passport (Estrategia de Google)
 passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    // En tu backend (index.js)
-    callbackURL:`${process.env.BASE_URL}/auth/google/callback`,
-    proxy: true 
-  },
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  // En tu backend (index.js)
+  callbackURL: `${process.env.BASE_URL}/auth/google/callback`,
+  proxy: true
+},
   async (accessToken, refreshToken, profile, done) => {
     try {
 
@@ -71,10 +71,10 @@ let tempExpoUrl = "";
 app.get('/auth/google', (req, res, next) => {
   // Guardamos la URL de redirección que nos mande Expo (la de la docente)
   tempExpoUrl = req.query.redirect;
-  passport.authenticate('google', { 
-    scope: ['profile', 'email'], 
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
     state: tempExpoUrl, // Google nos devolverá esto en el callback
-    prompt: 'select_account' 
+    prompt: 'select_account'
   })(req, res, next);
 });
 
@@ -125,8 +125,8 @@ app.post('/api/academic-profile', async (req, res) => {
 app.get('/auth/failure', (req, res) => {
   // Recuperamos la URL de Expo que guardamos en el state si es posible, 
   // o usamos un valor por defecto.
-  const expoUrl = req.query.state || "exp://localhost:8081"; 
-  
+  const expoUrl = req.query.state || "exp://localhost:8081";
+
   // Redirigimos a la app con un parámetro de error
   res.redirect(`${expoUrl}?error=domain_not_allowed`);
 });
@@ -192,7 +192,7 @@ app.get('/api/academic-profile/:studentId', async (req, res) => {
     }
 
     // Enviamos los datos limpios al frontend
-    res.status(200).json(doc.data()); 
+    res.status(200).json(doc.data());
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -200,7 +200,7 @@ app.get('/api/academic-profile/:studentId', async (req, res) => {
 
 app.get('/api/search-students', async (req, res) => {
   try {
-    const {name, subjectId, isMonitor} = req.query;
+    const { name, subjectId, isMonitor } = req.query;
 
     let profileQuery = db.collection('academic_profiles');
 
@@ -208,21 +208,23 @@ app.get('/api/search-students', async (req, res) => {
       profileQuery = profileQuery.where('subjects', 'array-contains', subjectId);
     }
 
-    if (isMonitor=='true') {
+    if (isMonitor == 'true') {
       profileQuery = profileQuery.where('isMonitor', '==', true);
     }
 
     const profileSnapshot = await profileQuery.get();
 
-    if (profileQuery.empty) {
+
+    if (profileSnapshot.empty) {
       return res.json([]);
     }
 
-    const studentIds = profileSnapshot.docs.map(doc => doc.id); 
+    const studentIds = profileSnapshot.docs.map(doc => doc.data().studentId);
 
-    const usersSnapshot = await db.collection('users') 
-      .where('uid', 'in', studentIds.slice(0,10))
-      .get
+    const usersSnapshot = await db.collection('users')
+      .where('uid', 'in', studentIds.slice(0, 10))
+      .get();
+
 
     let users = usersSnapshot.docs.map(doc => ({
       id: doc.id,
@@ -230,16 +232,34 @@ app.get('/api/search-students', async (req, res) => {
     }));
 
     if (name) {
-      users = users.filter(user => user.name.toLowerCase().includes(name.toLowerCase()));
+      users = users.filter(user =>
+        user.name.toLowerCase().includes(name.toLowerCase())
+      );
     }
 
     res.json(users);
+
+  } catch (error) {
+    res.status(500).json({ error: "error en la búsqueda" });
+  }
+});
+
+app.get('/api/subjects', async (req,res) =>{
+  try {
+    const snapshot = await db.collection('subjects').get();
+
+    const subjects = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    res.json(subjects);
     
   } catch (error) {
-    console.error(error);
-    res.status(500).json({error: "error en la búsqueda"});
+    console.log(error);
+    res.status(500).json({error: "Error al obtener materias"});
   }
-})
+});
 
 
 const chatRoutes = require('./routes/chatRoutes');
