@@ -183,19 +183,37 @@ app.get('/api/careers', async (req, res) => {
 
 // Obtener el perfil de un estudiante específico
 app.get('/api/academic-profile/:studentId', async (req, res) => {
-  try {
-    const { studentId } = req.params;
-    const doc = await db.collection('academic_profiles').doc(studentId).get();
+    try {
+        const profileDoc = await db.collection('academic_profiles').doc(req.params.studentId).get();
+        if (!profileDoc.exists) return res.status(404).send("Not found");
 
-    if (!doc.exists) {
-      return res.status(404).json(null); // Importante enviar null o 404
+        const profileData = profileDoc.data();
+
+        // 1. Obtener nombre de la carrera
+        const careerDoc = await db.collection('careers').doc(profileData.careerId).get();
+        const careerName = careerDoc.exists ? careerDoc.data().name : "Carrera no encontrada";
+
+        // 2. Obtener nombres de materias
+        const subjectsPromises = profileData.subjects.map(id => 
+            db.collection('subjects').doc(id).get()
+        );
+        const subjectsDocs = await Promise.all(subjectsPromises);
+        const subjectNames = subjectsDocs.map(doc => doc.exists ? doc.data().name : "Materia desconocida");
+
+        // 3. Obtener datos básicos del usuario (Nombre y Correo)
+        const userDoc = await db.collection('users').doc(req.params.studentId).get();
+        const userData = userDoc.exists ? userDoc.data() : {};
+
+        res.json({
+            ...profileData,
+            userName: userData.name || "Sin nombre",
+            userEmail: userData.email || "Sin correo",
+            careerName: careerName,
+            subjectNames: subjectNames
+        });
+    } catch (e) {
+        res.status(500).send(e.message);
     }
-
-    // Enviamos los datos limpios al frontend
-    res.status(200).json(doc.data());
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
 });
 
 app.get('/api/search-students', async (req, res) => {
