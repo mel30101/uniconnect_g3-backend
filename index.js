@@ -183,86 +183,97 @@ app.get('/api/careers', async (req, res) => {
 
 // Obtener el perfil de un estudiante específico
 app.get('/api/academic-profile/:studentId', async (req, res) => {
-    try {
-        const profileDoc = await db.collection('academic_profiles').doc(req.params.studentId).get();
-        if (!profileDoc.exists) return res.status(404).send("Not found");
+  try {
+    const profileDoc = await db.collection('academic_profiles').doc(req.params.studentId).get();
+    if (!profileDoc.exists) return res.status(404).send("Not found");
 
-        const profileData = profileDoc.data();
+    const profileData = profileDoc.data();
 
-        // 1. Obtener nombre de la carrera
-        const careerDoc = await db.collection('careers').doc(profileData.careerId).get();
-        const careerName = careerDoc.exists ? careerDoc.data().name : "Carrera no encontrada";
+    const careerDoc = await db.collection('careers').doc(profileData.careerId).get();
+    const careerName = careerDoc.exists ? careerDoc.data().name : "Carrera no encontrada";
 
-        // 2. Obtener nombres de materias
-        const subjectsPromises = profileData.subjects.map(id => 
-            db.collection('subjects').doc(id).get()
-        );
-        const subjectsDocs = await Promise.all(subjectsPromises);
-        const subjectNames = subjectsDocs.map(doc => doc.exists ? doc.data().name : "Materia desconocida");
+    const subjectsPromises = profileData.subjects.map(id =>
+      db.collection('subjects').doc(id).get()
+    );
+    const subjectsDocs = await Promise.all(subjectsPromises);
+    const subjectNames = subjectsDocs.map(doc => doc.exists ? doc.data().name : "Materia desconocida");
 
-        // 3. Obtener datos básicos del usuario (Nombre y Correo)
-        const userDoc = await db.collection('users').doc(req.params.studentId).get();
-        const userData = userDoc.exists ? userDoc.data() : {};
+    const userDoc = await db.collection('users').doc(req.params.studentId).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
 
-        res.json({
-            ...profileData,
-            userName: userData.name || "Sin nombre",
-            userEmail: userData.email || "Sin correo",
-            careerName: careerName,
-            subjectNames: subjectNames
-        });
-    } catch (e) {
-        res.status(500).send(e.message);
-    }
+    res.json({
+      ...profileData,
+      userName: userData.name || "Sin nombre",
+      userEmail: userData.email || "Sin correo",
+      careerName: careerName,
+      subjectNames: subjectNames
+    });
+  } catch (e) {
+    res.status(500).send(e.message);
+  }
 });
 
 app.get('/api/search-students', async (req, res) => {
   try {
-    const { name, subjectId, isMonitor } = req.query;
+    const { name, subjectId, isMonitor, excludeId } = req.query;
 
     let profileQuery = db.collection('academic_profiles');
-
-    if (subjectId) {
-      profileQuery = profileQuery.where('subjects', 'array-contains', subjectId);
-    }
 
     if (isMonitor == 'true') {
       profileQuery = profileQuery.where('isMonitor', '==', true);
     }
 
-    const profileSnapshot = await profileQuery.get();
-
-
-    if (profileSnapshot.empty) {
-      return res.json([]);
+    if (subjectId) {
+      const subjectIdsArray = subjectId.split(',');
+      profileQuery = profileQuery.where('subjects', 'array-contains-any', subjectIdsArray);
     }
 
-    const studentIds = profileSnapshot.docs.map(doc => doc.data().studentId);
+    const profileSnapshot = await profileQuery.get();
+
+    if (profileSnapshot.empty) return res.json([]);
+
+    let filteredProfiles = profileSnapshot.docs.map(doc => doc.data());
+
+    if (subjectId) {
+      const subjectIdsArray = subjectId.split(',');
+      filteredProfiles = filteredProfiles.filter(profile =>
+        subjectIdsArray.every(id => profile.subjects.includes(id))
+      );
+    }
+
+    if (filteredProfiles.length === 0) return res.json([]);
+
+    const studentIds = filteredProfiles.map(p => p.studentId);
 
     const usersSnapshot = await db.collection('users')
       .where('uid', 'in', studentIds.slice(0, 10))
       .get();
 
+    let users = usersSnapshot.docs.map(doc => {
+      const userData = doc.data();
+      const userProfile = filteredProfiles.find(p => p.studentId === userData.uid);
 
-    let users = usersSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+      return {
+        id: doc.id,
+        ...userData,
+        materiasIds: userProfile ? userProfile.subjects : []
+      };
+    });
 
+    if (excludeId) users = users.filter(user => user.id !== excludeId);
     if (name) {
-      users = users.filter(user =>
-        user.name.toLowerCase().includes(name.toLowerCase())
-      );
+      users = users.filter(user => user.name.toLowerCase().includes(name.toLowerCase()));
     }
 
     res.json(users);
 
   } catch (error) {
+    console.error("error en search-students:", error);
     res.status(500).json({ error: "error en la búsqueda" });
   }
 });
 
-app.get('/api/subjects', async (req,res) =>{
+app.get('/api/subjects', async (req, res) => {
   try {
     const snapshot = await db.collection('subjects').get();
 
@@ -272,10 +283,10 @@ app.get('/api/subjects', async (req,res) =>{
     }));
 
     res.json(subjects);
-    
+
   } catch (error) {
     console.log(error);
-    res.status(500).json({error: "Error al obtener materias"});
+    res.status(500).json({ error: "Error al obtener materias" });
   }
 });
 
