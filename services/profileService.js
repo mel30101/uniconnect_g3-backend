@@ -28,8 +28,9 @@ const getFullProfile = async (studentId) => {
 
 const saveAcademicProfile = async (data) => {
   const { studentId, ...rest } = data;
+
   await db.collection('academic_profiles').doc(studentId).set(
-    { ...rest, updatedAt: new Date() }, 
+    { studentId,...rest, updatedAt: new Date() }, 
     { merge: true }
   );
   return { success: true, message: "Perfil guardado" };
