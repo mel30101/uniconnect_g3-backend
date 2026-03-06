@@ -8,32 +8,69 @@ const getFullProfile = async (studentId) => {
     db.collection('users').doc(studentId).get()
   ]);
 
-  if (!profileDoc.exists) throw new Error('PROFILE_NOT_FOUND');
+  const profileData = profileDoc.exists ? profileDoc.data() : {};
+  const userData = userDoc.exists ? userDoc.data() : {};
 
-  const profileData = profileDoc.data();
-  
+  // Si no existe ni el usuario ni el perfil académico
+  if (!userDoc.exists && !profileDoc.exists) {
+    throw new Error('PROFILE_NOT_FOUND');
+  }
+
   // Consultas paralelas de catálogos
   const [careerDoc, subjectsDocs] = await Promise.all([
-    db.collection('careers').doc(profileData.careerId).get(),
-    Promise.all(profileData.subjects.map(id => db.collection('subjects').doc(id).get()))
+    profileData.careerId ? db.collection('careers').doc(profileData.careerId).get() : Promise.resolve({ exists: false }),
+    profileData.subjects ? Promise.all(profileData.subjects.map(id => db.collection('subjects').doc(id).get())) : Promise.resolve([])
   ]);
 
   return {
     ...profileData,
-    userName: userDoc.exists ? userDoc.data().name : "Sin nombre",
+    ...userData,
+    userName: userData.name || "Sin nombre",
     careerName: careerDoc.exists ? careerDoc.data().name : "No encontrada",
     subjectNames: subjectsDocs.map(d => d.exists ? d.data().name : "Materia desconocida")
   };
 };
 
 const saveAcademicProfile = async (data) => {
-  const { studentId, ...rest } = data;
+  const {
+    studentId,
+    // Personal information
+    biography,
+    showEmail,
+    phone,
+    age,
+    studyPreference,
+    // Academic information
+    careerId,
+    subjects,
+  } = data;
 
-  await db.collection('academic_profiles').doc(studentId).set(
-    { studentId,...rest, updatedAt: new Date() }, 
-    { merge: true }
-  );
-  return { success: true, message: "Perfil guardado" };
+  // 1. Save personal information to the 'users' collection
+  const personalInfo = {
+    biography: biography || "",
+    showEmail: showEmail ?? true,
+    phone: phone || "",
+    age: age || "",
+    studyPreference: studyPreference || "",
+    updatedAt: new Date(),
+    // Explicitly remove the redundant field if it exists
+    institutionalEmail: admin.firestore.FieldValue.delete(),
+  };
+  await db.collection("users").doc(studentId).set(personalInfo, { merge: true });
+
+  // 2. Save academic information to the 'academic_profiles' collection
+  const academicInfo = {
+    studentId,
+    careerId,
+    subjects: subjects || [],
+    updatedAt: new Date(),
+    // Explicitly remove the redundant field if it exists
+    institutionalEmail: admin.firestore.FieldValue.delete(),
+    isMonitor: admin.firestore.FieldValue.delete(),
+  };
+  await db.collection("academic_profiles").doc(studentId).set(academicInfo, { merge: true });
+
+  return { success: true, message: "Perfil guardado correctamente en ambas colecciones" };
 };
 
 module.exports = { getFullProfile, saveAcademicProfile };

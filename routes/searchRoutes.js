@@ -4,12 +4,11 @@ const searchService = require('../services/searchService');
 const { asyncHandler } = require('../middlewares/errorMiddleware');
 
 router.get('/', asyncHandler(async (req, res) => {
-  const { name, subjectId, isMonitor, excludeId } = req.query;
-  
+  const { name, subjectId, excludeId } = req.query;
+
   const results = await searchService.searchStudents({
     name,
     subjectId,
-    isMonitor: isMonitor === 'true',
     excludeId
   });
 

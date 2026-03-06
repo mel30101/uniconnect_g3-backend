@@ -1,13 +1,8 @@
 const admin = require('firebase-admin');
 const db = admin.firestore();
 
-const searchStudents = async ({ name, subjectId, isMonitor, excludeId }) => {
+const searchStudents = async ({ name, subjectId, excludeId }) => {
   let profileQuery = db.collection('academic_profiles');
-
-  // Filtro de Monitoría (Resuelve tu error actual)
-  if (isMonitor) {
-    profileQuery = profileQuery.where('isMonitor', '==', true);
-  }
 
   // Filtro de Materias
   if (subjectId) {
@@ -23,7 +18,7 @@ const searchStudents = async ({ name, subjectId, isMonitor, excludeId }) => {
   // Intersección manual si se buscan múltiples materias (Firestore no hace AND en array-contains)
   if (subjectId && subjectId.includes(',')) {
     const subjectIdsArray = subjectId.split(',');
-    filteredProfiles = filteredProfiles.filter(p => 
+    filteredProfiles = filteredProfiles.filter(p =>
       subjectIdsArray.every(id => p.subjects.includes(id))
     );
   }
