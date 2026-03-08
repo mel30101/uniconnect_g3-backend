@@ -1,4 +1,5 @@
 const chatService = require('../services/chatService');
+const driveService = require('../services/driveService');
 
 const createChat = async (req, res) => {
     try {
@@ -31,10 +32,37 @@ const sendMessage = async (req, res) => {
     }
 };
 
+const sendFileMessage = async (req, res) => {
+    try {
+        const { chatId, senderId } = req.body;
+        const file = req.file;
+
+        if (!file) {
+            return res.status(400).json({ error: "Archivo no subido" });
+        }
+
+        const updodedFile = await driveService.uploadFile(file);
+
+        const messageText = `Archivo: ${updodedFile.fileName} - URL: ${updodedFile.fileUrl}`;
+
+        await chatService.sendMessage(
+            chatId, 
+            senderId,
+            messageText
+        );
+
+        res.json({ fileUrl: updodedFile.fileUrl });
+
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 const getMessage = async (req, res) => {
     try {
         const { chatId } = req.params;
         const message = await chatService.getMessage(chatId);
+        res.json({ messages: message });
 
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -44,5 +72,6 @@ const getMessage = async (req, res) => {
 module.exports = {
     createChat,
     sendMessage,
+    sendFileMessage,
     getMessage
-}
+};
