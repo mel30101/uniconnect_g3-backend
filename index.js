@@ -19,10 +19,11 @@ app.use('/api/academic-profile', require('./routes/profileRoutes'));
 app.use('/auth', require('./routes/authRoutes'));
 app.use('/chats', require('./routes/chatRoutes'));
 
-app.use('/api/careers', require('./routes/careerRoutes')); 
+app.use('/api/careers', require('./routes/careerRoutes'));
 app.use('/api/subjects', require('./routes/subjectRoutes'));
 app.use('/api/career-structure', require('./routes/sectionRoutes'));
 app.use('/api/search-students', require('./routes/searchRoutes'));
+app.use('/api/hierarchy', require('./routes/hierarchyRoutes'));
 
 // Middleware de error al FINAL (Obligatorio)
 app.use(globalErrorHandler);

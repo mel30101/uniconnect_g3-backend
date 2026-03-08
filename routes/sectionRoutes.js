@@ -1,36 +1,47 @@
 const express = require('express');
 const router = express.Router();
-const admin = require('firebase-admin');
+const { db } = require('../config/firestrore');
 
 router.get('/:careerId', async (req, res) => {
   try {
     const { careerId } = req.params;
-    const db = admin.firestore();
 
-    // Consultas en paralelo para evitar el lag de 5 segundos
-    const [sectionsSnapshot, subjectsSnapshot] = await Promise.all([
-      db.collection('sections').where('careerId', '==', careerId).get(),
-      db.collection('subjects').where('careerId', '==', careerId).get()
-    ]);
+    // 1. Obtener secciones de la carrera
+    const sectionsSnapshot = await db.collection('sections').where('careerId', '==', careerId).get();
 
     if (sectionsSnapshot.empty) {
       return res.status(404).json({ error: "No se encontró estructura para esta carrera" });
     }
 
-    const allSubjects = subjectsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    const sectionIds = sectionsSnapshot.docs.map(doc => doc.id);
 
-    // Organizar materias dentro de sus secciones (Lógica de Negocio)
+    // 2. Obtener TODAS las materias (para descartar problemas con la query 'in')
+    // Nota: En una app real, esto debería estar filtrado, pero para depurar y asegurar consistencia:
+    const subjectsSnapshot = await db.collection('subjects').get();
+
+    const allSubjects = subjectsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        sectionId: data.sectionId || ""
+      };
+    });
+
+    // 3. Organizar materias dentro de sus secciones
     const structure = sectionsSnapshot.docs.map(doc => {
       const sectionData = doc.data();
       const sectionId = doc.id;
 
+      // Filtramos localmente para asegurar el match
+      const sectionSubjects = allSubjects.filter(sub =>
+        String(sub.sectionId).trim() === String(sectionId).trim()
+      );
+
       return {
         sectionId: sectionId,
         sectionName: sectionData.name,
-        subjects: allSubjects.filter(sub => sub.sectionId === sectionId)
+        subjects: sectionSubjects
       };
     });
 
