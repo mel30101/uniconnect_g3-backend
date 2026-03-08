@@ -24,6 +24,7 @@ app.use('/api/subjects', require('./routes/subjectRoutes'));
 app.use('/api/career-structure', require('./routes/sectionRoutes'));
 app.use('/api/search-students', require('./routes/searchRoutes'));
 app.use('/api/hierarchy', require('./routes/hierarchyRoutes'));
+app.use('/api/groups', require('./routes/groupRoutes'));
 
 // Middleware de error al FINAL (Obligatorio)
 app.use(globalErrorHandler);
