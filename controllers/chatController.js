@@ -1,5 +1,5 @@
 const chatService = require('../services/chatService');
-const driveService = require('../services/driveService');
+const cloudinaryService = require('../services/cloudinaryService');
 
 const createChat = async (req, res) => {
     try {
@@ -34,25 +34,30 @@ const sendMessage = async (req, res) => {
 
 const sendFileMessage = async (req, res) => {
     try {
-        const { chatId, senderId } = req.body;
+        console.log("Cuerpo recibido:", req.body);
+        console.log("Archivo recibido:", req.file);
+        const { chatId } = req.params;
+        const { senderId } = req.body;
         const file = req.file;
-
         if (!file) {
             return res.status(400).json({ error: "Archivo no subido" });
         }
-
-        const updodedFile = await driveService.uploadFile(file);
-
-        const messageText = `Archivo: ${updodedFile.fileName} - URL: ${updodedFile.fileUrl}`;
-
+        const uploadedFile = await cloudinaryService.uploadFile(file);
+        const messageText = `Archivo: ${uploadedFile.fileName} - URL: ${uploadedFile.fileUrl}`;
         await chatService.sendMessage(
             chatId, 
             senderId,
-            messageText
+            {
+                type: 'file',
+                fileUrl: uploadedFile.fileUrl,
+                fileName: uploadedFile.fileName,
+                text: `Envió un archivo: ${uploadedFile.fileName}` 
+            }
         );
-
-        res.json({ fileUrl: updodedFile.fileUrl });
-
+        res.json({ 
+            fileUrl: uploadedFile.fileUrl,
+            fileName: uploadedFile.fileName 
+         });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

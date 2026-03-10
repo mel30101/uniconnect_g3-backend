@@ -7,8 +7,9 @@ exports.getProfile = asyncHandler(async (req, res) => {
 });
 
 exports.upsertProfile = asyncHandler(async (req, res) => {
-  if (!req.body.studentId || !req.body.subjects) {
-    return res.status(400).json({ error: "Datos incompletos" });
+  const { studentId, subjects, careerId } = req.body;
+  if (!studentId || !subjects || !careerId) {
+    return res.status(400).json({ error: "Datos incompletos (studentId, subjects y careerId son requeridos)" });
   }
   const result = await profileService.saveAcademicProfile(req.body);
   res.status(200).json(result);

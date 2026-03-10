@@ -2,4 +2,3 @@
 node_modules/
 config/serviceAccountKey.json
 .env
-config/causal-galaxy-460412-r8-fd4c91cf9f80.json

@@ -16,19 +16,31 @@ const getOrCreateChat = async (userA, userB) => {
   return chatId;
 };
 
-const sendMessage = async (chatId, senderId, text) => {
+const sendMessage = async (chatId, senderId, messageData) => {
+
+  const isObject = typeof messageData === 'object' && messageData !== null;
+  const data = isObject ? messageData : { text: messageData, type: 'text' };
+
+  const messagePayload = {
+    senderId,
+    createdAt: new Date(),
+    type: data.type || 'text',
+    text: data.text || '',
+    ...(data.fileUrl && { fileUrl: data.fileUrl }),
+    ...(data.fileName && { fileName: data.fileName })
+  };
+
   await db
     .collection('chats')
     .doc(chatId)
     .collection('messages')
-    .add({
-      senderId,
-      text,
-      createdAt: new Date()
-    });
+    .add(messagePayload);
+  const summaryText = data.type === 'file' 
+    ? `📎 Archivo: ${data.fileName}` 
+    : data.text;
 
   await db.collection('chats').doc(chatId).update({
-    lastMessage: text,
+    lastMessage: summaryText,
     updatedAt: new Date()
   });
 };
