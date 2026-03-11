@@ -118,9 +118,91 @@ const getGroupById = async (groupId) => {
     };
 };
 
+const searchGroups = async ({ subjectId, search, userSubjectIds }) => {
+    // Si no hay búsqueda ni filtro, retornar vacío
+    if (!search && !subjectId) return [];
+
+    let query = db.collection('groups');
+
+    // Filtro por materia exacta
+    if (subjectId) {
+        query = query.where('subjectId', '==', subjectId);
+    }
+
+    const snapshot = await query.get();
+    let groups = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // Filtrar por materias del usuario si se proporcionan
+    if (userSubjectIds) {
+        const allowedIds = userSubjectIds.split(',');
+        groups = groups.filter(group => allowedIds.includes(group.subjectId));
+    }
+
+    // Búsqueda por texto (nombre de grupo o nombre de materia)
+    if (search) {
+        const searchLower = search.toLowerCase();
+        
+        // Obtener todas las materias para buscar por nombre de materia
+        const subjectsSnapshot = await db.collection('subjects').get();
+        const subjectsMap = {};
+        subjectsSnapshot.docs.forEach(doc => {
+            subjectsMap[doc.id] = doc.data().name;
+        });
+
+        groups = groups.filter(group => {
+            const searchTerms = searchLower.split(' ').filter(t => t.length > 0);
+            
+            const checkMatch = (text) => {
+                if (!text) return false;
+                const words = text.toLowerCase().split(' ');
+                return searchTerms.every(term => 
+                    words.some(word => word.startsWith(term))
+                );
+            };
+
+            const groupNameMatches = checkMatch(group.name);
+            const subjectName = subjectsMap[group.subjectId] || '';
+            const subjectMatches = checkMatch(subjectName);
+            
+            return groupNameMatches || subjectMatches;
+        });
+
+        // Enriquecer con subjectName
+        groups = groups.map(group => ({
+            ...group,
+            subjectName: subjectsMap[group.subjectId] || 'Materia desconocida'
+        }));
+    } else {
+        // Enriquecer con subjectName si solo hay subjectId
+        for (let group of groups) {
+            const subjectDoc = await db.collection('subjects').doc(group.subjectId).get();
+            group.subjectName = subjectDoc.exists ? subjectDoc.data().name : 'Materia desconocida';
+        }
+    }
+
+    // Obtener miembros para cada grupo
+    const enrichedGroups = await Promise.all(groups.map(async (group) => {
+        const membersSnapshot = await db.collection('group_members')
+            .where('groupId', '==', group.id)
+            .get();
+        
+        const memberIds = membersSnapshot.docs.map(m => m.data().userId);
+        const userDocs = await Promise.all(memberIds.map(id => db.collection('users').doc(id).get()));
+        const memberNames = userDocs.map(u => u.exists ? u.data().name : 'Usuario desconocido');
+
+        return {
+            ...group,
+            members: memberNames
+        };
+    }));
+
+    return enrichedGroups;
+};
+
 module.exports = {
     createGroup,
     checkGroupNameUnique,
     getUserGroups,
-    getGroupById
+    getGroupById,
+    searchGroups
 };
