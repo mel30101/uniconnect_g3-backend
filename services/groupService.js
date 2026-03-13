@@ -11,14 +11,12 @@ const checkGroupNameUnique = async (name) => {
 
 const createGroup = async (groupData) => {
     const { name, subjectId, description, creatorId } = groupData;
-
-    // 1. Validar nombre único
     const isUnique = await checkGroupNameUnique(name);
+
     if (!isUnique) {
         throw new Error('GROUP_NAME_ALREADY_EXISTS');
     }
 
-    // 2. Crear el grupo
     const groupRef = db.collection('groups').doc();
     const newGroup = {
         id: groupRef.id,
@@ -31,21 +29,18 @@ const createGroup = async (groupData) => {
     };
 
     await groupRef.set(newGroup);
-
-    // 3. Asignar al creador como admin en la tabla de miembros
     await db.collection('group_members').add({
         groupId: groupRef.id,
         userId: creatorId,
         role: 'admin',
         joinedAt: new Date()
     });
-
     return newGroup;
 };
 
 const getUserGroups = async (userId, role) => {
-    // 1. Buscar los IDs de los grupos donde el usuario tiene el rol especificado
     let query = db.collection('group_members').where('userId', '==', userId);
+
     if (role) {
         query = query.where('role', '==', role);
     }
@@ -55,54 +50,41 @@ const getUserGroups = async (userId, role) => {
 
     if (groupIds.length === 0) return [];
 
-    // 2. Obtener los detalles de esos grupos
-    // Nota: Firestore 'in' query permite hasta 30 IDs
     const groupsSnapshot = await db.collection('groups')
         .where(admin.firestore.FieldPath.documentId(), 'in', groupIds)
         .get();
-
     const groups = [];
+
     for (const doc of groupsSnapshot.docs) {
         const groupData = doc.data();
-
-        // Obtener el nombre de la materia
         const subjectDoc = await db.collection('subjects').doc(groupData.subjectId).get();
         const subjectName = subjectDoc.exists ? subjectDoc.data().name : 'Materia desconocida';
-
-        // Obtener lista de miembros (nombres)
         const membersSnapshot = await db.collection('group_members')
             .where('groupId', '==', doc.id)
             .get();
-
         const memberIds = membersSnapshot.docs.map(m => m.data().userId);
         const userDocs = await Promise.all(memberIds.map(id => db.collection('users').doc(id).get()));
         const memberNames = userDocs.map(u => u.exists ? u.data().name : 'Usuario desconocido');
-
         groups.push({
             ...groupData,
             subjectName,
             members: memberNames
         });
     }
-
     return groups;
 };
 
 const getGroupById = async (groupId) => {
     const groupDoc = await db.collection('groups').doc(groupId).get();
+
     if (!groupDoc.exists) return null;
 
     const groupData = groupDoc.data();
-
-    // Obtener nombre de la materia
     const subjectDoc = await db.collection('subjects').doc(groupData.subjectId).get();
     const subjectName = subjectDoc.exists ? subjectDoc.data().name : 'Materia desconocida';
-
-    // Obtener miembros
     const membersSnapshot = await db.collection('group_members')
         .where('groupId', '==', groupId)
         .get();
-
     const memberIds = membersSnapshot.docs.map(m => m.data().userId);
     const userDocs = await Promise.all(memberIds.map(id => db.collection('users').doc(id).get()));
     const memberDetails = userDocs.map(u => ({
@@ -110,7 +92,6 @@ const getGroupById = async (groupId) => {
         name: u.exists ? u.data().name : 'Usuario desconocido',
         role: membersSnapshot.docs.find(m => m.data().userId === u.id).data().role
     }));
-
     return {
         ...groupData,
         subjectName,
@@ -118,9 +99,75 @@ const getGroupById = async (groupId) => {
     };
 };
 
+const searchGroups = async ({ subjectId, search, userSubjectIds }) => {
+
+    if (!search && !subjectId) return [];
+
+    let query = db.collection('groups');
+
+    if (subjectId) {
+        query = query.where('subjectId', '==', subjectId);
+    }
+
+    const snapshot = await query.get();
+    let groups = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    if (userSubjectIds) {
+        const allowedIds = userSubjectIds.split(',');
+        groups = groups.filter(group => allowedIds.includes(group.subjectId));
+    }
+    
+    if (search) {
+        const searchLower = search.toLowerCase();   
+        const subjectsSnapshot = await db.collection('subjects').get();
+        const subjectsMap = {};
+        subjectsSnapshot.docs.forEach(doc => {
+            subjectsMap[doc.id] = doc.data().name;
+        });
+        groups = groups.filter(group => {
+            const searchTerms = searchLower.split(' ').filter(t => t.length > 0);
+            const checkMatch = (text) => {
+                if (!text) return false;
+                const words = text.toLowerCase().split(' ');
+                return searchTerms.every(term => 
+                    words.some(word => word.startsWith(term))
+                );
+            };
+            const groupNameMatches = checkMatch(group.name);
+            const subjectName = subjectsMap[group.subjectId] || '';
+            const subjectMatches = checkMatch(subjectName);
+            return groupNameMatches || subjectMatches;
+        });
+        groups = groups.map(group => ({
+            ...group,
+            subjectName: subjectsMap[group.subjectId] || 'Materia desconocida'
+        }));
+    } else {
+        for (let group of groups) {
+            const subjectDoc = await db.collection('subjects').doc(group.subjectId).get();
+            group.subjectName = subjectDoc.exists ? subjectDoc.data().name : 'Materia desconocida';
+        }
+    }
+
+    const enrichedGroups = await Promise.all(groups.map(async (group) => {
+        const membersSnapshot = await db.collection('group_members')
+            .where('groupId', '==', group.id)
+            .get();
+        const memberIds = membersSnapshot.docs.map(m => m.data().userId);
+        const userDocs = await Promise.all(memberIds.map(id => db.collection('users').doc(id).get()));
+        const memberNames = userDocs.map(u => u.exists ? u.data().name : 'Usuario desconocido');
+        return {
+            ...group,
+            members: memberNames
+        };
+    }));
+    return enrichedGroups;
+};
+
 module.exports = {
     createGroup,
     checkGroupNameUnique,
     getUserGroups,
-    getGroupById
+    getGroupById,
+    searchGroups
 };

@@ -14,7 +14,7 @@ const seedDatabase = async () => {
     try {
         console.log("Iniciando carga de datos...");
 
-        // 1. Facultades (Genéricas)
+        /*// 1. Facultades (Genéricas)
         const faculties = [
             { id: "FAC_ARTES", name: "Artes y Humanidades" },
             { id: "FAC_INGENIERIAS", name: "Inteligencia Artificial e Ingenierías" }
@@ -179,6 +179,48 @@ const seedDatabase = async () => {
                 sectionId: sectionId
             });
 
+        }*/
+
+        const events = [
+            {
+                id: "EVT_001",
+                title: 'Festival Cultural de Bienvenida',
+                location: 'Auditorio Central y Plazoleta',
+                date: '2026-04-15',
+                time: '04:00 PM',
+                duration: '4 horas',
+                description: 'Música en vivo, grupos de danza folclórica de la universidad y muestra gastronómica local para dar la bienvenida al nuevo semestre.',
+                type: 'Cultural',
+                imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=400&auto=format&fit=crop'
+            },
+            {
+                id: "EVT_002",
+                title: 'Torneo Interfacultades de Futsal',
+                location: 'Canchas Deportivas del Campus',
+                date: '2026-04-18',
+                time: '09:00 AM',
+                duration: 'Todo el fin de semana',
+                description: 'Ven a apoyar a tu facultad en el torneo inaugural de futsal. Inscripciones abiertas para equipos mixtos.',
+                type: 'Deportivo',
+                imageUrl: 'https://images.unsplash.com/photo-1579952362224-d9196b025492?q=80&w=400&auto=format&fit=crop'
+            },
+            {
+                id: "EVT_003",
+                title: 'Seminario: IA aplicada a la Educación',
+                location: 'Sala de Conferencias Edificio C, Piso 3',
+                date: '2026-04-22',
+                time: '10:00 AM',
+                duration: '2 horas',
+                description: 'Conferencistas invitados hablarán sobre cómo las herramientas de Inteligencia Artificial están transformando los métodos de estudio y enseñanza.',
+                type: 'Académico',
+                imageUrl: 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=400&auto=format&fit=crop'
+            }
+        ];
+        
+        for (const evt of events) {
+            // Guardamos todo excepto el 'id' dentro del documento, usando el 'id' como identificador del doc
+            const { id, ...eventData } = evt; 
+            await db.collection('events').doc(id).set(eventData);
         }
 
         console.log("¡Datos cargados con éxito en Firestore!");

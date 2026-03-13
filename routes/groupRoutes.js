@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const groupService = require('../services/groupService');
+const groupController = require('../controllers/groupController');
 
-// POST /api/groups
 router.post('/', async (req, res, next) => {
     try {
         const { name, subjectId, description, creatorId } = req.body;
@@ -31,7 +31,6 @@ router.post('/', async (req, res, next) => {
     }
 });
 
-// GET /api/groups/check-name/:name
 router.get('/check-name/:name', async (req, res) => {
     try {
         const isUnique = await groupService.checkGroupNameUnique(req.params.name);
@@ -64,5 +63,21 @@ router.get('/:id', async (req, res, next) => {
         next(error);
     }
 });
+
+router.get('/', async (req, res, next) => {
+    try {
+        const { subjectId, search, userSubjectIds } = req.query;
+        const groups = await groupService.searchGroups({ subjectId, search, userSubjectIds });
+        res.json(groups);
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Ruta para obtener detalle del grupo (la que ya usas en el front)
+router.get('/:id', groupController.getGroupById);
+
+// NUEVA RUTA: Para enviar la solicitud de unión
+router.post('/:id/requests', groupController.sendJoinRequest);
 
 module.exports = router;
