@@ -74,10 +74,9 @@ router.get('/', async (req, res, next) => {
     }
 });
 
-// Ruta para obtener detalle del grupo (la que ya usas en el front)
 router.get('/:id', groupController.getGroupById);
-
-// NUEVA RUTA: Para enviar la solicitud de unión
 router.post('/:id/requests', groupController.sendJoinRequest);
+router.get('/:id/requests', groupController.getGroupRequests);
+router.put('/:id/requests/:requestId', groupController.handleRequestAction);
 
 module.exports = router;

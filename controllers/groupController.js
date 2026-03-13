@@ -11,19 +11,16 @@ const sendJoinRequest = async (req, res) => {
             return res.status(400).json({ error: "userId y userName son requeridos" });
         }
 
-        // 1. Verificamos si el grupo existe 
         const group = await groupService.getGroupById(id);
         if (!group) {
             return res.status(404).json({ error: "El grupo no existe" });
         }
 
-        // 2. Verificamos si ya es miembro 
         const isMember = group.members.some(m => m.id === userId);
         if (isMember) {
             return res.status(400).json({ error: "Ya eres miembro de este grupo" });
         }
 
-        // 3. Verificamos si ya existe una solicitud pendiente
         const requestRef = db.collection('groups').doc(id).collection('requests').doc(userId);
         const requestDoc = await requestRef.get();
 
@@ -31,7 +28,6 @@ const sendJoinRequest = async (req, res) => {
             return res.status(400).json({ error: "Ya tienes una solicitud pendiente para este grupo" });
         }
 
-        // 4. Guardamos la solicitud
         await requestRef.set({
             userId,
             userName,
@@ -46,8 +42,53 @@ const sendJoinRequest = async (req, res) => {
     }
 };
 
+const getGroupRequests = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const requestsSnapshot = await db.collection('groups').doc(id).collection('requests')
+            .where('status', '==', 'pending')
+            .get();
+
+        const requests = requestsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        res.status(200).json(requests);
+    } catch (error) {
+        res.status(500).json({ error: "Error al obtener solicitudes" });
+    }
+};
+
+const handleRequestAction = async (req, res) => {
+    try {
+        const { id, requestId } = req.params; 
+        const { status } = req.body; 
+
+        const requestRef = db.collection('groups').doc(id).collection('requests').doc(requestId);
+        
+        if (status === 'accepted') {
+            await db.collection('group_members').add({
+                groupId: id,
+                userId: requestId,
+                role: 'student',
+                joinedAt: new Date()
+            });
+            await requestRef.update({ status: 'accepted' });
+        } else {
+            await requestRef.update({ status: 'rejected' });
+        }
+
+        res.status(200).json({ message: `Solicitud ${status} correctamente` });
+    } catch (error) {
+        res.status(500).json({ error: "Error al procesar la acción" });
+    }
+};
+
 module.exports = {
     sendJoinRequest,
+    getGroupRequests,
+    handleRequestAction,
     getGroupById: async (req, res) => {
         const group = await groupService.getGroupById(req.params.id);
         group ? res.json(group) : res.status(404).send("No encontrado");
