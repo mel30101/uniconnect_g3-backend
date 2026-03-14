@@ -66,8 +66,8 @@ router.get('/:id', async (req, res, next) => {
 
 router.get('/', async (req, res, next) => {
     try {
-        const { subjectId, search, userSubjectIds } = req.query;
-        const groups = await groupService.searchGroups({ subjectId, search, userSubjectIds });
+        const { subjectId, search, userSubjectIds, userId } = req.query;
+        const groups = await groupService.searchGroups({ subjectId, search, userSubjectIds, userId });
         res.json(groups);
     } catch (error) {
         next(error);

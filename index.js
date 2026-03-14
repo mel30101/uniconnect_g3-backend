@@ -33,15 +33,11 @@ app.use('/api/career-structure', require('./routes/sectionRoutes'));
 app.use('/api/search-students', require('./routes/searchRoutes'));
 app.use('/api/hierarchy', require('./routes/hierarchyRoutes'));
 app.use('/api/groups', require('./routes/groupRoutes'));
+app.use('/api', require('./routes/eventRoutes'));
 
 // --- MANEJO DE ERRORES ---
 // Middleware de error al FINAL (Obligatorio)
 app.use(globalErrorHandler);
-
-// 2. Conecta las rutas al prefijo '/api'
-app.use('/api', require('./routes/eventRoutes'));
-
-app.use('/api/groups', require('./routes/groupRoutes'));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor UniConnect listo en puerto ${PORT}`));

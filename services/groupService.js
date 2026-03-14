@@ -59,6 +59,13 @@ const getUserGroups = async (userId, role) => {
         const groupData = doc.data();
         const subjectDoc = await db.collection('subjects').doc(groupData.subjectId).get();
         const subjectName = subjectDoc.exists ? subjectDoc.data().name : 'Materia desconocida';
+        
+        let adminName = 'Desconocido';
+        if (groupData.creatorId) {
+            const creatorDoc = await db.collection('users').doc(groupData.creatorId).get();
+            if (creatorDoc.exists) adminName = creatorDoc.data().name;
+        }
+
         const membersSnapshot = await db.collection('group_members')
             .where('groupId', '==', doc.id)
             .get();
@@ -68,6 +75,7 @@ const getUserGroups = async (userId, role) => {
         groups.push({
             ...groupData,
             subjectName,
+            adminName,
             members: memberNames
         });
     }
@@ -99,7 +107,7 @@ const getGroupById = async (groupId) => {
     };
 };
 
-const searchGroups = async ({ subjectId, search, userSubjectIds }) => {
+const searchGroups = async ({ subjectId, search, userSubjectIds, userId }) => {
     if (!search && !subjectId) return [];
 
     let query = db.collection('groups');
@@ -114,6 +122,10 @@ const searchGroups = async ({ subjectId, search, userSubjectIds }) => {
     if (userSubjectIds) {
         const allowedIds = userSubjectIds.split(',');
         groups = groups.filter(group => allowedIds.includes(group.subjectId));
+    }
+    
+    if (userId) {
+        groups = groups.filter(group => group.creatorId !== userId);
     }
     
     if (search) {
@@ -149,6 +161,12 @@ const searchGroups = async ({ subjectId, search, userSubjectIds }) => {
     }
 
     const enrichedGroups = await Promise.all(groups.map(async (group) => {
+        let adminName = 'Desconocido';
+        if (group.creatorId) {
+            const creatorDoc = await db.collection('users').doc(group.creatorId).get();
+            if (creatorDoc.exists) adminName = creatorDoc.data().name;
+        }
+
         const membersSnapshot = await db.collection('group_members')
             .where('groupId', '==', group.id)
             .get();
@@ -157,6 +175,7 @@ const searchGroups = async ({ subjectId, search, userSubjectIds }) => {
         const memberNames = userDocs.map(u => u.exists ? u.data().name : 'Usuario desconocido');
         return {
             ...group,
+            adminName,
             members: memberNames
         };
     }));
