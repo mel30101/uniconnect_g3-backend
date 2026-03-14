@@ -78,5 +78,6 @@ router.get('/:id', groupController.getGroupById);
 router.post('/:id/requests', groupController.sendJoinRequest);
 router.get('/:id/requests', groupController.getGroupRequests);
 router.put('/:id/requests/:requestId', groupController.handleRequestAction);
+router.delete('/:id/members/:userId', groupController.removeMember);
 
 module.exports = router;

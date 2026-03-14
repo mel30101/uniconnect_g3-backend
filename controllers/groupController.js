@@ -85,10 +85,55 @@ const handleRequestAction = async (req, res) => {
     }
 };
 
+const removeMember = async (req, res) => {
+    const { id, userId } = req.params; 
+    const { adminId } = req.body; // Asegúrate de recibir adminId
+
+    try {
+        const groupRef = db.collection('groups').doc(id);
+        const groupDoc = await groupRef.get();
+
+        if (!groupDoc.exists) {
+            return res.status(404).json({ error: "Grupo no encontrado" });
+        }
+
+        const groupData = groupDoc.data();
+        
+        // VALIDACIÓN: Si members no existe por alguna razón, inicializa como array vacío
+        const members = groupData.members || [];
+
+        // Validar que quien solicita es el admin
+        const adminUser = members.find(m => m.id === adminId);
+        const isAdmin = adminUser && adminUser.role === 'admin';
+
+        if (!isAdmin) {
+            return res.status(403).json({ error: "No tienes permisos de administrador" });
+        }
+
+        // Evitar que el admin se elimine a sí mismo
+        if (userId === adminId) {
+            return res.status(400).json({ error: "No puedes eliminarte a ti mismo" });
+        }
+
+        // Filtrar la lista: dejamos a todos menos al que queremos eliminar
+        const updatedMembers = members.filter(m => m.id !== userId);
+
+        // Actualizar en la base de datos
+        await groupRef.update({ members: updatedMembers });
+
+        return res.json({ message: "Miembro eliminado con éxito" });
+
+    } catch (error) {
+        console.error("Error en removeMember:", error);
+        return res.status(500).json({ error: error.message });
+    }
+};
+
 module.exports = {
     sendJoinRequest,
     getGroupRequests,
     handleRequestAction,
+    removeMember,
     getGroupById: async (req, res) => {
         const group = await groupService.getGroupById(req.params.id);
         group ? res.json(group) : res.status(404).send("No encontrado");
