@@ -182,10 +182,47 @@ const searchGroups = async ({ subjectId, search, userSubjectIds, userId }) => {
     return enrichedGroups;
 };
 
+const transferAdminRole = async (groupId, currentAdminId, newAdminId) => {
+    return await db.runTransaction(async (transaction) => {
+        const groupRef = db.collection('groups').doc(groupId);
+        const groupDoc = await transaction.get(groupRef);
+
+        if (!groupDoc.exists) {
+            throw new Error('GROUP_NOT_FOUND');
+        }
+
+        const currentAdminMemberQuery = await db.collection('group_members')
+            .where('groupId', '==', groupId)
+            .where('userId', '==', currentAdminId)
+            .get();
+
+        if (currentAdminMemberQuery.empty || currentAdminMemberQuery.docs[0].data().role !== 'admin') {
+            throw new Error('NOT_AUTHORIZED');
+        }
+
+        const newAdminMemberQuery = await db.collection('group_members')
+            .where('groupId', '==', groupId)
+            .where('userId', '==', newAdminId)
+            .get();
+
+        if (newAdminMemberQuery.empty) {
+            throw new Error('NEW_ADMIN_NOT_FOUND');
+        }
+
+        const currentAdminMemberRef = currentAdminMemberQuery.docs[0].ref;
+        const newAdminMemberRef = newAdminMemberQuery.docs[0].ref;
+
+        transaction.update(groupRef, { creatorId: newAdminId });
+        transaction.update(newAdminMemberRef, { role: 'admin' });
+        transaction.delete(currentAdminMemberRef);
+    });
+};
+
 module.exports = {
     createGroup,
     checkGroupNameUnique,
     getUserGroups,
     getGroupById,
-    searchGroups
+    searchGroups,
+    transferAdminRole
 };

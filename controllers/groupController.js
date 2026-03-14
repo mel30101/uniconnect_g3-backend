@@ -85,10 +85,31 @@ const handleRequestAction = async (req, res) => {
     }
 };
 
+const transferAdmin = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { adminId, newAdminId } = req.body;
+
+        if (!adminId || !newAdminId) {
+            return res.status(400).json({ error: "adminId y newAdminId son requeridos" });
+        }
+
+        await groupService.transferAdminRole(id, adminId, newAdminId);
+        res.status(200).json({ message: "Administración cedida con éxito." });
+    } catch (error) {
+        console.error("Error en transferAdmin:", error);
+        if (error.message === 'NOT_AUTHORIZED' || error.message === 'GROUP_NOT_FOUND' || error.message === 'NEW_ADMIN_NOT_FOUND') {
+            return res.status(400).json({ error: error.message });
+        }
+        res.status(500).json({ error: "Error interno del servidor" });
+    }
+};
+
 module.exports = {
     sendJoinRequest,
     getGroupRequests,
     handleRequestAction,
+    transferAdmin,
     getGroupById: async (req, res) => {
         const group = await groupService.getGroupById(req.params.id);
         group ? res.json(group) : res.status(404).send("No encontrado");
