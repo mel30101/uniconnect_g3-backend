@@ -81,4 +81,22 @@ router.put('/:id/requests/:requestId', groupController.handleRequestAction);
 router.delete('/:id/members/:userId', groupController.removeMember);
 router.put('/:id/transfer-admin', groupController.transferAdmin);
 
+router.post('/groups/:id/members', async (req, res) => {
+    const { id } = req.params;
+    const { userId, role } = req.body;
+    try {
+        await db.collection('group_members').add({
+            groupId: id,
+            userId,
+            role: role || 'student',
+            joinedAt: new Date()
+        });
+        res.json({ message: "Añadido" });
+    } catch (e) {
+        res.status(500).send(e.message);
+    }
+});
+router.post('/:id/members', groupController.addMember);
+router.delete('/:id/leave/:userId', groupController.leaveGroup);
+
 module.exports = router;

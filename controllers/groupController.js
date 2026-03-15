@@ -86,48 +86,42 @@ const handleRequestAction = async (req, res) => {
 };
 
 const removeMember = async (req, res) => {
-    const { id, userId } = req.params; 
-    const { adminId } = req.body; // Asegúrate de recibir adminId
+    const { id: groupId, userId } = req.params; 
+    const adminId = req.query.adminId; 
 
     try {
-        const groupRef = db.collection('groups').doc(id);
-        const groupDoc = await groupRef.get();
+        const adminMemberSnapshot = await db.collection('group_members')
+            .where('groupId', '==', groupId)
+            .where('userId', '==', adminId)
+            .where('role', '==', 'admin')
+            .limit(1)
+            .get();
 
-        if (!groupDoc.exists) {
-            return res.status(404).json({ error: "Grupo no encontrado" });
+        if (adminMemberSnapshot.empty) {
+            return res.status(403).json({ 
+                error: "No tienes permisos de administrador en este grupo" 
+            });
         }
-
-        const groupData = groupDoc.data();
-        
-        // VALIDACIÓN: Si members no existe por alguna razón, inicializa como array vacío
-        const members = groupData.members || [];
-
-        // Validar que quien solicita es el admin
-        const adminUser = members.find(m => m.id === adminId);
-        const isAdmin = adminUser && adminUser.role === 'admin';
-
-        if (!isAdmin) {
-            return res.status(403).json({ error: "No tienes permisos de administrador" });
-        }
-
-        // Evitar que el admin se elimine a sí mismo
         if (userId === adminId) {
             return res.status(400).json({ error: "No puedes eliminarte a ti mismo" });
         }
-
-        // Filtrar la lista: dejamos a todos menos al que queremos eliminar
-        const updatedMembers = members.filter(m => m.id !== userId);
-
-        // Actualizar en la base de datos
-        await groupRef.update({ members: updatedMembers });
-
-        return res.json({ message: "Miembro eliminado con éxito" });
-
+        const memberToDeleteSnapshot = await db.collection('group_members')
+            .where('groupId', '==', groupId)
+            .where('userId', '==', userId)
+            .limit(1)
+            .get();
+        if (memberToDeleteSnapshot.empty) {
+            return res.status(404).json({ error: "El usuario no pertenece a este grupo" });
+        }
+        const memberDocRef = memberToDeleteSnapshot.docs[0].ref;
+        await memberDocRef.delete();
+        return res.json({ message: "Miembro eliminado con éxito del grupo" });
     } catch (error) {
         console.error("Error en removeMember:", error);
-        return res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: "Error interno del servidor" });
     }
 };
+
 const transferAdmin = async (req, res) => {
     try {
         const { id } = req.params;
@@ -148,12 +142,59 @@ const transferAdmin = async (req, res) => {
     }
 };
 
+const addMember = async (req, res) => {
+    const { id: groupId } = req.params; 
+    const { userId, role } = req.body;  
+
+    try {
+        const exists = await db.collection('group_members')
+            .where('groupId', '==', groupId)
+            .where('userId', '==', userId)
+            .get();
+
+        if (!exists.empty) {
+            return res.status(400).json({ error: "El usuario ya es miembro de este grupo" });
+        }
+        await db.collection('group_members').add({
+            groupId: groupId,
+            userId: userId,
+            role: role || 'student',
+            joinedAt: new Date()
+        });
+
+        res.status(201).json({ message: "Miembro añadido correctamente" });
+    } catch (error) {
+        console.error("Error al añadir miembro:", error);
+        res.status(500).json({ error: "No se pudo añadir al miembro" });
+    }
+};
+
+const leaveGroup = async (req, res) => {
+    const { id: groupId, userId } = req.params; 
+    try {
+        const memberSnapshot = await db.collection('group_members')
+            .where('groupId', '==', groupId)
+            .where('userId', '==', userId)
+            .limit(1)
+            .get();
+        if (memberSnapshot.empty) {
+            return res.status(404).json({ error: "No eres miembro de este grupo" });
+        }
+        await memberSnapshot.docs[0].ref.delete();
+        return res.json({ message: "Has salido del grupo correctamente" });
+    } catch (error) {
+        return res.status(500).json({ error: "Error al intentar salir del grupo" });
+    }
+};
+
 module.exports = {
     sendJoinRequest,
     getGroupRequests,
     handleRequestAction,
     removeMember,
     transferAdmin,
+    addMember,
+    leaveGroup,
     getGroupById: async (req, res) => {
         const group = await groupService.getGroupById(req.params.id);
         group ? res.json(group) : res.status(404).send("No encontrado");

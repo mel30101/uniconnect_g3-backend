@@ -218,11 +218,32 @@ const transferAdminRole = async (groupId, currentAdminId, newAdminId) => {
     });
 };
 
+const getAvailableStudents = async (groupId, subjectId, search = '') => {
+    const currentMembersSnapshot = await db.collection('group_members')
+        .where('groupId', '==', groupId)
+        .get();
+    const excludedIds = currentMembersSnapshot.docs.map(doc => doc.data().userId);
+    let query = db.collection('users');
+
+    const snapshot = await query.get();
+    let students = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(user => {
+            const matchesSubject = user.enrolledSubjects?.includes(subjectId);
+            const notInGroup = !excludedIds.includes(user.id);
+            const matchesName = user.name.toLowerCase().includes(search.toLowerCase());
+            return matchesSubject && notInGroup && matchesName;
+        });
+
+    return students;
+};
+
 module.exports = {
     createGroup,
     checkGroupNameUnique,
     getUserGroups,
     getGroupById,
     searchGroups,
-    transferAdminRole
+    transferAdminRole,
+    getAvailableStudents
 };
