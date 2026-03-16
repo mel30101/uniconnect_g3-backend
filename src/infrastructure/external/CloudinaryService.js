@@ -16,11 +16,15 @@ class CloudinaryService {
         ? file.originalname.split('.').pop().toLowerCase()
         : '';
       const isRaw = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv', 'zip', 'rar'].includes(extension);
-
+      
+      const safeName = file.originalname
+        .replace(/\.[^/.]+$/, "")
+        .replace(/[^a-zA-Z0-9]/g, "_");
+      
       const uploadOptions = {
         folder: 'uniconnect_chats',
         resource_type: isRaw ? 'raw' : 'auto',
-        public_id: `archivo_${Date.now()}_${file.originalname.replace(/\.[^/.]+$/, "")}${isRaw && extension ? '.' + extension : ''}`
+        public_id: `archivo_${Date.now()}_${safeName}${isRaw && extension ? '.' + extension : ''}`
       };
 
       if (!isRaw && extension) {

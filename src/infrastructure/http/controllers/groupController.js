@@ -15,6 +15,15 @@ class GroupController {
     this.addMemberUC = useCases.addMember;
     this.leaveGroupUC = useCases.leaveGroup;
     this.getAvailableStudentsUC = useCases.getAvailableStudents;
+    this.leaveGroupUC = useCases.leaveGroup;
+    this.getAvailableStudentsUC = useCases.getAvailableStudents;
+    this.deleteUserRequestsUC = useCases.deleteUserRequests;
+    this.getAvailableStudentsUC = useCases.getAvailableStudents;
+    this.deleteUserRequestsUC = useCases.deleteUserRequests;
+    this.getAvailableStudentsUC = useCases.getAvailableStudents;
+    this.deleteUserRequestsUC = useCases.deleteUserRequests;
+    this.getAvailableStudentsUC = useCases.getAvailableStudents;
+    this.deleteUserRequestsUC = useCases.deleteUserRequests;
   }
 
   createGroup = asyncHandler(async (req, res, next) => {
@@ -83,6 +92,24 @@ class GroupController {
     const result = await this.leaveGroupUC.execute(req.params.id, req.params.userId);
     res.json(result);
   });
+
+  deleteUserRequests = asyncHandler(async (req, res, next) => {
+    const { id, userId } = req.params; // id es el groupId según tus rutas
+    const result = await this.deleteUserRequestsUC.execute(id, userId);
+    res.status(200).json(result);
+  });
+
+  getAvailableStudents = asyncHandler(async (req, res, next) => {
+    const { groupId } = req.params;
+    const students = await this.getAvailableStudentsUC.execute(groupId);
+    res.status(200).json(students);
+  }); 
+  static getInstance(useCases) {
+    if (!GroupController.instance) {
+      GroupController.instance = new GroupController(useCases);
+    } 
+    return GroupController.instance;
+  }
 }
 
 module.exports = GroupController;

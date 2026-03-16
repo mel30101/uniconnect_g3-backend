@@ -22,12 +22,30 @@ class FirestoreGroupRequestRepository extends IGroupRequestRepository {
     return { id: doc.id, ...doc.data() };
   }
 
-  async create(groupId, userId, requestData) {
+  async findByUserAndGroup(groupId, userId) {
+    const snapshot = await this.db.collection('group_requests')
+      .where('groupId', '==', groupId)
+      .where('userId', '==', userId)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) return null;
+    return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+  }
+
+  async create(requestData) {
+    const { groupId, userId, userName } = requestData;
+
+    // Validación de seguridad para evitar el error de "documentPath"
+    if (!groupId || !userId) {
+      throw new Error('Faltan IDs para crear la solicitud: groupId o userId');
+    }
+
     await this.db.collection('groups').doc(groupId)
       .collection('requests').doc(userId)
       .set({
-        userId: requestData.userId,
-        userName: requestData.userName,
+        userId: userId,
+        userName: userName,
         status: 'pending',
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
@@ -37,6 +55,15 @@ class FirestoreGroupRequestRepository extends IGroupRequestRepository {
     await this.db.collection('groups').doc(groupId)
       .collection('requests').doc(userId)
       .update({ status });
+  }
+
+  async deleteByUserAndGroup(groupId, userId) {
+    // Borramos directamente el documento del usuario dentro de la subcolección del grupo
+    const docRef = this.db.collection('groups').doc(groupId)
+      .collection('requests').doc(userId);
+
+    await docRef.delete();
+    return true;
   }
 }
 

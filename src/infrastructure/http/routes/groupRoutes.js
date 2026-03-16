@@ -30,6 +30,17 @@ function createGroupRoutes(controller) {
 
   // Transferir administración
   router.put('/:id/transfer-admin', controller.transferAdmin);
+  
+  router.post('/:id/requests', controller.sendJoinRequest);
+  router.get('/:id/requests', controller.getGroupRequests);
+  router.put('/:id/requests/:requestId', controller.handleRequestAction);
+  
+  router.delete('/:id/requests/:userId', controller.deleteUserRequests);
+
+  // Gestión de miembros
+  router.post('/:id/members', controller.addMember);
+  router.delete('/:id/members/:userId', controller.removeMember);
+  router.delete('/:id/leave/:userId', controller.leaveGroup);
 
   return router;
 }

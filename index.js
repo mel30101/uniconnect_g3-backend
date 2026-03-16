@@ -57,6 +57,7 @@ const TransferAdmin = require('./src/application/use-cases/group/transferAdmin')
 const AddMember = require('./src/application/use-cases/group/addMember');
 const LeaveGroup = require('./src/application/use-cases/group/leaveGroup');
 const GetAvailableStudents = require('./src/application/use-cases/group/getAvailableStudents');
+const DeleteUserRequests = require('./src/application/use-cases/group/deleteUserRequests');
 
 // Chat use-cases
 const GetOrCreateChat = require('./src/application/use-cases/chat/getOrCreateChat');
@@ -117,6 +118,7 @@ const getCareersByPathUC = new GetCareersByPath(catalogRepo);
 const getAllCareersUC = new GetAllCareers(catalogRepo);
 const getAllSubjectsUC = new GetAllSubjects(catalogRepo);
 const getCareerStructureUC = new GetCareerStructure(catalogRepo);
+const deleteUserRequestsUC = new DeleteUserRequests(groupRequestRepo);
 
 // --- CONTROLLERS (Infraestructura/HTTP) ---
 const GroupController = require('./src/infrastructure/http/controllers/groupController');
@@ -125,6 +127,7 @@ const ProfileController = require('./src/infrastructure/http/controllers/profile
 const SearchController = require('./src/infrastructure/http/controllers/searchController');
 const EventController = require('./src/infrastructure/http/controllers/eventController');
 const AcademicController = require('./src/infrastructure/http/controllers/academicController');
+
 
 const groupCtrl = new GroupController({
   createGroup: createGroupUC,
