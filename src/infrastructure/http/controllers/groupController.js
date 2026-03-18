@@ -16,13 +16,6 @@ class GroupController {
     this.leaveGroupUC = useCases.leaveGroup;
     this.getAvailableStudentsUC = useCases.getAvailableStudents;
     this.leaveGroupUC = useCases.leaveGroup;
-    this.getAvailableStudentsUC = useCases.getAvailableStudents;
-    this.deleteUserRequestsUC = useCases.deleteUserRequests;
-    this.getAvailableStudentsUC = useCases.getAvailableStudents;
-    this.deleteUserRequestsUC = useCases.deleteUserRequests;
-    this.getAvailableStudentsUC = useCases.getAvailableStudents;
-    this.deleteUserRequestsUC = useCases.deleteUserRequests;
-    this.getAvailableStudentsUC = useCases.getAvailableStudents;
     this.deleteUserRequestsUC = useCases.deleteUserRequests;
   }
 

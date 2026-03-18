@@ -4,11 +4,8 @@ const cors = require('cors');
 const admin = require('firebase-admin');
 const passport = require('passport');
 
-// --- INICIALIZACIÓN DE FIREBASE ---
 const { db } = require('./src/config/firestore');
 
-
-// --- REPOSITORIOS (Infraestructura/Database) ---
 const FirestoreUserRepository = require('./src/infrastructure/database/FirestoreUserRepository');
 const FirestoreGroupRepository = require('./src/infrastructure/database/FirestoreGroupRepository');
 const FirestoreGroupMemberRepository = require('./src/infrastructure/database/FirestoreGroupMemberRepository');
@@ -29,7 +26,6 @@ const academicProfileRepo = new FirestoreAcademicProfileRepository(db);
 const catalogRepo = new FirestoreAcademicCatalogRepository(db);
 const eventRepo = new FirestoreEventRepository(db);
 
-// --- SERVICIOS EXTERNOS ---
 const CloudinaryService = require('./src/infrastructure/external/CloudinaryService');
 const cloudinaryService = new CloudinaryService({
   cloudName: process.env.CLOUDINARY_CLOUD_NAME,
@@ -37,13 +33,9 @@ const cloudinaryService = new CloudinaryService({
   apiSecret: process.env.CLOUDINARY_API_SECRET
 });
 
-// --- CONFIGURACIÓN DE PASSPORT ---
 const configurePassport = require('./src/config/passport');
 configurePassport(userRepo);
 
-// --- USE-CASES (Aplicación) ---
-
-// Group use-cases
 const CreateGroup = require('./src/application/use-cases/group/createGroup');
 const GetUserGroups = require('./src/application/use-cases/group/getUserGroups');
 const GetGroupById = require('./src/application/use-cases/group/getGroupById');
@@ -59,23 +51,18 @@ const LeaveGroup = require('./src/application/use-cases/group/leaveGroup');
 const GetAvailableStudents = require('./src/application/use-cases/group/getAvailableStudents');
 const DeleteUserRequests = require('./src/application/use-cases/group/deleteUserRequests');
 
-// Chat use-cases
 const GetOrCreateChat = require('./src/application/use-cases/chat/getOrCreateChat');
 const SendMessage = require('./src/application/use-cases/chat/sendMessage');
 const SendFileMessage = require('./src/application/use-cases/chat/sendFileMessage');
 const GetMessages = require('./src/application/use-cases/chat/getMessages');
 
-// Profile use-cases
 const GetFullProfile = require('./src/application/use-cases/profile/getFullProfile');
 const SaveAcademicProfile = require('./src/application/use-cases/profile/saveAcademicProfile');
 
-// Search use-cases
 const SearchStudents = require('./src/application/use-cases/search/searchStudents');
 
-// Event use-cases
 const GetEvents = require('./src/application/use-cases/event/getEvents');
 
-// Academic use-cases
 const GetAllFaculties = require('./src/application/use-cases/academic/getAllFaculties');
 const GetAcademicLevelsByFaculty = require('./src/application/use-cases/academic/getAcademicLevelsByFaculty');
 const GetFormationLevels = require('./src/application/use-cases/academic/getFormationLevels');
@@ -84,7 +71,6 @@ const GetAllCareers = require('./src/application/use-cases/academic/getAllCareer
 const GetAllSubjects = require('./src/application/use-cases/academic/getAllSubjects');
 const GetCareerStructure = require('./src/application/use-cases/academic/getCareerStructure');
 
-// Instanciar use-cases con dependencias inyectadas
 const createGroupUC = new CreateGroup(groupRepo, groupMemberRepo);
 const getUserGroupsUC = new GetUserGroups(groupMemberRepo, groupRepo, catalogRepo, userRepo);
 const getGroupByIdUC = new GetGroupById(groupRepo, groupMemberRepo, catalogRepo, userRepo);
@@ -120,14 +106,12 @@ const getAllSubjectsUC = new GetAllSubjects(catalogRepo);
 const getCareerStructureUC = new GetCareerStructure(catalogRepo);
 const deleteUserRequestsUC = new DeleteUserRequests(groupRequestRepo);
 
-// --- CONTROLLERS (Infraestructura/HTTP) ---
 const GroupController = require('./src/infrastructure/http/controllers/groupController');
 const ChatController = require('./src/infrastructure/http/controllers/chatController');
 const ProfileController = require('./src/infrastructure/http/controllers/profileController');
 const SearchController = require('./src/infrastructure/http/controllers/searchController');
 const EventController = require('./src/infrastructure/http/controllers/eventController');
 const AcademicController = require('./src/infrastructure/http/controllers/academicController');
-
 
 const groupCtrl = new GroupController({
   createGroup: createGroupUC,
@@ -142,7 +126,8 @@ const groupCtrl = new GroupController({
   transferAdmin: transferAdminUC,
   addMember: addMemberUC,
   leaveGroup: leaveGroupUC,
-  getAvailableStudents: getAvailableStudentsUC
+  getAvailableStudents: getAvailableStudentsUC,
+  deleteUserRequests: deleteUserRequestsUC
 });
 
 const chatCtrl = new ChatController({
@@ -175,7 +160,6 @@ const academicCtrl = new AcademicController({
   getCareerStructure: getCareerStructureUC
 });
 
-// --- RUTAS (Infraestructura/HTTP) ---
 const createGroupRoutes = require('./src/infrastructure/http/routes/groupRoutes');
 const createChatRoutes = require('./src/infrastructure/http/routes/chatRoutes');
 const createProfileRoutes = require('./src/infrastructure/http/routes/profileRoutes');
@@ -186,20 +170,14 @@ const createAuthRoutes = require('./src/infrastructure/http/routes/authRoutes');
 
 const { globalErrorHandler } = require('./src/infrastructure/http/middlewares/errorMiddleware');
 
-// --- APLICACIÓN EXPRESS ---
 const app = express();
 
-// Middlewares Globales
 app.use(cors());
 app.use(express.json());
 app.use(passport.initialize());
 
-// --- DEFINICIÓN DE RUTAS ---
-
-// Rutas de Autenticación
 app.use('/auth', createAuthRoutes());
 
-// Rutas de la API (Prefijo /api)
 app.use('/api/academic-profile', createProfileRoutes(profileCtrl));
 app.use('/api/chat', createChatRoutes(chatCtrl));
 app.use('/api/search-students', createSearchRoutes(searchCtrl));
@@ -207,7 +185,6 @@ app.use('/api/groups', createGroupRoutes(groupCtrl));
 app.use('/api', createEventRoutes(eventCtrl));
 app.use('/api', createAcademicRoutes(academicCtrl));
 
-// --- MANEJO DE ERRORES ---
 app.use(globalErrorHandler);
 
 const PORT = process.env.PORT || 3000;
